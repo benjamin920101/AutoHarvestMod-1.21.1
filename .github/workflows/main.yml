@@ -40,3 +40,11 @@ jobs:
         with:
           name: Artifacts
           path: build/libs/
+
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            build/libs/*.jar
