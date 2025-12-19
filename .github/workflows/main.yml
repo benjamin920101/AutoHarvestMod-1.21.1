@@ -1,65 +1,38 @@
-name: Build
+# Automatically build the project and run any configured tests for every push
+# and submitted pull request. This can help catch issues that only occur on
+# certain platforms or Java versions, and provides a first line of defence
+# against bad commits.
 
-concurrency:
-  group: "build"
-  cancel-in-progress: false
-
-on:
-  push:
-    branches:
-      - master
+name: build
+on: [pull_request, push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        # Use these Java versions
+        java: [ '17' ]
+        # and run on both Linux and Windows
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: checkout repository
+        uses: actions/checkout@v2.4.0
+      - name: validate gradle wrapper
+        uses: gradle/wrapper-validation-action@v1
+      - name: setup jdk ${{ matrix.java }}
+        uses: actions/setup-java@v2.5.0
         with:
           distribution: 'temurin'
-          java-version: '21'
-
-      - name: Set up Node JS
-        uses: actions/setup-node@v4
+          java-version: ${{ matrix.java }}
+      - name: make gradle wrapper executable
+        if: ${{ runner.os != 'Windows' }}
+        run: chmod +x ./gradlew
+      - name: build
+        run: ./gradlew build
+      - name: capture build artifacts
+        if: ${{ runner.os == 'Linux' }} # Only upload artifacts built from LTS java on one OS
+        uses: actions/upload-artifact@v6
         with:
-          node-version: 22
-
-      - name: Get current build number
-        id: build-number
-        run: |
-          cd .github/builds
-          npm install
-          npm run --silent get_number >> $GITHUB_OUTPUT
-      - name: Build
-        run: ./gradlew build -Pcommit=${{ github.sha }} -Pbuild_number=${{ steps.build-number.outputs.number }}
-
-      - name: Webhook Failure
-        if: ${{ failure() }}
-        run: |
-          cd .github/builds
-          npm run webhook -- ${{ steps.build-number.outputs.number }} ${{ github.ref_name }} https://api.github.com/repos/MeteorDevelopment/meteor-client/compare/${{ github.event.before }}...${{ github.event.after }} false
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-
-      - name: Publish
-        run: ./gradlew publish -Pcommit=${{ github.sha }} -Pbuild_number=${{ steps.build-number.outputs.number }}
-        env:
-          MAVEN_METEOR_ALIAS: ${{ secrets.MAVEN_METEOR_ALIAS }}
-          MAVEN_METEOR_TOKEN: ${{ secrets.MAVEN_METEOR_TOKEN }}
-
-      - name: Discord webhook
-        run: |
-          cd .github/builds
-          npm run webhook -- ${{ steps.build-number.outputs.number }} ${{ github.ref_name }} https://api.github.com/repos/MeteorDevelopment/meteor-client/compare/${{ github.event.before }}...${{ github.event.after }} true
-        env:
-          SERVER_TOKEN: ${{ secrets.SERVER_TOKEN }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          name: Artifacts
+          path: build/libs/
