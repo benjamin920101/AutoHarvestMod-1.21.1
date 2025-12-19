@@ -34,12 +34,6 @@ jobs:
         run: chmod +x ./gradlew
       - name: build
         run: ./gradlew build
-      - name: capture build artifacts
-        if: ${{ runner.os == 'Linux' }} # Only upload artifacts built from LTS java on one OS
-        uses: actions/upload-artifact@v6
-        with:
-          name: Artifacts
-          path: build/libs/
 
       - uses: "marvinpinto/action-automatic-releases@latest"
         if: ${{ runner.os == 'Linux' }}
