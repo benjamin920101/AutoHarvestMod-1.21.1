@@ -39,6 +39,7 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
+          automatic_release_tag: "latest"
+          prerelease: true
           files: |
             build/libs/*.jar
